@@ -189,7 +189,7 @@ class VN200: public VN100{
 
     // INS configuration
     const uint8_t INS_CONFIG_REG[2]                 = {67,  4};
-    const uint8_t INS_STARTUP_FILTER_BIAS_REG[2]    = {74.  28};
+    const uint8_t INS_STARTUP_FILTER_BIAS_REG[2]    = {74,  28};
 
     // INS measurements
     const uint8_t INS_LLA_SOL_MEAS_REG[2]           = {63,  72};
@@ -198,10 +198,20 @@ class VN200: public VN100{
     const uint8_t INS_ECEF_STATE_MEAS_REG[2]        = {73,  72};
 };
 
+/* VN-300 firmware still in beta without SPI support. Below is an
+education guess at the additional commands and registers needed.
 class VN300: public VN200{
   public:
     using VN200::VN200;
   private:
+
+    // commands
+    const uint8_t CMD_SET_INITIAL_HEADING = 0x12;
+
+    // GPS configuration
+    const uint8_t GPS_COMPASS_BASELINE_CONFIG_REG[2]= {93,  24};
+    const uint8_t GPS_COMPASS_ESTIMATED_BASELINE_REG[2]   = {97,  28};
 };
+*/
 
 #endif
