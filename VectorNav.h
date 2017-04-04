@@ -176,11 +176,31 @@ class VN200: public VN100{
   public:
     using VN100::VN100;
   private:
+    // commands
+    const uint8_t CMD_SET_FILTER_BIAS = 0x11;
+
+    // GPS configuration
+    const uint8_t GPS_CONFIG_REG[2]                 = {55,  5};
+    const uint8_t GPS_ANT_OFFSET_REG[2]             = {57,  12};
+
+    // GPS measurements
+    const uint8_t GPS_LLA_MEAS_REG[2]               = {58,  72};
+    const uint8_t GPS_ECEF_MEAS_REG[2]              = {59,  72};
+
+    // INS configuration
+    const uint8_t INS_CONFIG_REG[2]                 = {67,  4};
+    const uint8_t INS_STARTUP_FILTER_BIAS_REG[2]    = {74.  28};
+
+    // INS measurements
+    const uint8_t INS_LLA_SOL_MEAS_REG[2]           = {63,  72};
+    const uint8_t INS_ECEF_SOL_MEAS_REG[2]          = {64,  72};
+    const uint8_t INS_LLA_STATE_MEAS_REG[2]         = {72,  72};
+    const uint8_t INS_ECEF_STATE_MEAS_REG[2]        = {73,  72};
 };
 
-class VN300: public VN100{
+class VN300: public VN200{
   public:
-    using VN100::VN100;
+    using VN200::VN200;
   private:
 };
 
