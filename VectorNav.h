@@ -77,6 +77,7 @@ class VN100{
     int getEuler(float* yaw, float* pitch, float* roll);
     int getEulerIMU(float* yaw, float* pitch, float* roll, float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
+    int writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer);
   private:
     // spi
     uint8_t _csPin;
