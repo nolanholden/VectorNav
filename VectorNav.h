@@ -67,6 +67,12 @@ class VN100{
     VN100(uint8_t cspin);
     VN100(uint8_t csPin, spi_mosi_pin pin);
     int begin();
+    
+    int enableInterrupt(uint16_t SRD, uint32_t pulseWidth);
+    int setDLPF(uint16_t magWindowSize, uint16_t accelWindowSize, uint16_t gyroWindowSize, uint16_t temperatureWindowSize, uint16_t pressureWindowSize);
+    int setReferenceFrameRotation(float T[3][3]);
+    int velocityCompensation(float U, float V, float W);
+
     int getAccel(float* ax, float* ay, float* az);
     int getGyro(float* gx, float* gy, float* gz);
     int getMag(float* hx, float* hy, float* hz);
@@ -76,6 +82,12 @@ class VN100{
     int getMotion9(float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
     int getEuler(float* yaw, float* pitch, float* roll);
     int getEulerIMU(float* yaw, float* pitch, float* roll, float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
+    int getQuat(float* quat[4]);
+    int getQuatIMU(float* quat[4], float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
+
+    int tareAttitude();
+    int writeSettings();
+    int resetSensor();
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
     int writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer);
   private:
