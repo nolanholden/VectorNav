@@ -218,6 +218,7 @@ int VN100::setReferenceFrameRotation(float T[3][3]) {
   for(uint8_t i = 0; i < 3; i++) {
     for(uint8_t j = 0; j < 3; j++) {
       C[k] = T[i][j];
+      k++;
     }
   }
   memcpy(buffer,&C,REF_FRAME_ROTATION_REG[1]);
@@ -227,13 +228,11 @@ int VN100::setReferenceFrameRotation(float T[3][3]) {
   if (errType < 0){return errType;}
 
   // write settings to NVM
-  errType = writeSettings();
-  if (errType < 0){return errType;}
+  writeSettings();
 
   // reset sensor
-  errType = resetSensor();
-  if (errType < 0){return errType;}
-  else{return 0;}
+  resetSensor();
+  return 0;
 }
 
 /* Inputs the inertial velocity in the sensor frame (x, y, z) in m/s
@@ -467,10 +466,7 @@ int VN100::getQuatIMU(float* quat[4], float* ax, float* ay, float* az, float* gx
 }
 
 /* Writes the current register settings to non-volatile memory */
-/* Return 0 on success or the VN error code on error. */
-int VN100::writeSettings() {
-  uint8_t headerBuffer[HEADER_LENGTH];
-
+void VN100::writeSettings() {
   if( _useSPI ){
 
     if(timeSinceTX >= 50) {
@@ -490,20 +486,9 @@ int VN100::writeSettings() {
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        delayMicroseconds(50); // wait at least 50 us for response buffer to fill
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
-          headerBuffer[i] = SPI.transfer(0x00); // read the header
-        }
-        // end communication
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        SPI.endTransaction(); // end the transaction
         timeSinceTX = 0;
 
-        // check the response header
-        if(headerBuffer[3] != 0) {
-          return -1*headerBuffer[3];
-        }
+        delay(1000); // writing to non-volatile memory takes about 500 ms to complete
       }
     #endif
 
@@ -583,15 +568,116 @@ int VN100::writeSettings() {
   else{
     // SERIAL
   }
-  delay(500); // writing to non-volatile memory takes about 500 ms to complete
-  return 0;
+}
+
+/* Restores the sensor to factory defaults */
+void VN100::restoreSettings() {
+  if( _useSPI ){
+
+    if(timeSinceTX >= 50) {
+
+    } else {
+      delayMicroseconds(50 - timeSinceTX);
+    }
+
+    // Teensy 3.0 || Teensy 3.1/3.2
+    #if defined(__MK20DX128__) || defined(__MK20DX256__)
+      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
+        // begin the transaction
+        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+        digitalWriteFast(_csPin,LOW); // select the VN100
+        SPI.transfer(CMD_RESTORE); // specify command is a Flash
+        SPI.transfer(0x00); // 3 bytes of zeros sent in header
+        SPI.transfer(0x00); // 3 bytes of zeros sent in header
+        SPI.transfer(0x00); // 3 bytes of zeros sent in header
+        digitalWriteFast(_csPin,HIGH); // deselect the VN100
+        timeSinceTX = 0;
+
+        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
+      }
+    #endif
+
+    // // Teensy 3.5 || Teensy 3.6 
+    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
+    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
+    //     // begin the transaction
+    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    //     digitalWriteFast(_csPin,LOW); // select the VN100
+    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
+
+    //     for(uint8_t i = 0; i < count; i++){
+    //       dest[i] = SPI.transfer(0x00); // read the data
+    //     }
+
+    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    //     SPI.endTransaction(); // end the transaction
+    //   }
+    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
+    //     // begin the transaction
+    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    //     digitalWriteFast(_csPin,LOW); // select the VN100
+    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
+
+    //     for(uint8_t i = 0; i < count; i++){
+    //       dest[i] = SPI1.transfer(0x00); // read the data
+    //     }
+
+    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    //     SPI1.endTransaction(); // end the transaction
+    //   }
+    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
+    //     // begin the transaction
+    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    //     digitalWriteFast(_csPin,LOW); // select the VN100
+    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
+
+    //     for(uint8_t i = 0; i < count; i++){
+    //       dest[i] = SPI2.transfer(0x00); // read the data
+    //     }
+
+    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    //     SPI2.endTransaction(); // end the transaction
+    //   }
+    // #endif
+
+    // // Teensy LC 
+    // #if defined(__MKL26Z64__)
+    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
+    //     // begin the transaction
+    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    //     digitalWriteFast(_csPin,LOW); // select the VN100
+    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
+
+    //     for(uint8_t i = 0; i < count; i++){
+    //       dest[i] = SPI.transfer(0x00); // read the data
+    //     }
+
+    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    //     SPI.endTransaction(); // end the transaction
+    //   }
+    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
+    //     // begin the transaction
+    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    //     digitalWriteFast(_csPin,LOW); // select the VN100
+    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
+
+    //     for(uint8_t i = 0; i < count; i++){
+    //       dest[i] = SPI1.transfer(0x00); // read the data
+    //     }
+
+    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    //     SPI1.endTransaction(); // end the transaction
+    //   }
+    // #endif
+  }
+  else{
+    // SERIAL
+  }
 }
 
 /* Resets the sensors */
 /* Return 0 on success or the VN error code on error. */
-int VN100::resetSensor() {
-  uint8_t headerBuffer[HEADER_LENGTH];
-
+void VN100::resetSensor() {
   if( _useSPI ){
 
     if(timeSinceTX >= 50) {
@@ -611,20 +697,9 @@ int VN100::resetSensor() {
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        delayMicroseconds(50); // wait at least 50 us for response buffer to fill
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
-          headerBuffer[i] = SPI.transfer(0x00); // read the header
-        }
-        // end communication
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        SPI.endTransaction(); // end the transaction
         timeSinceTX = 0;
 
-        // check the response header
-        if(headerBuffer[3] != 0) {
-          return -1*headerBuffer[3];
-        }
+        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
       }
     #endif
 
@@ -704,13 +779,9 @@ int VN100::resetSensor() {
   else{
     // SERIAL
   }
-  delay(3000); // takes a few seconds for the sensor to come back up and converge on a solution
-  return 0;  
 }
 
-int VN100::tareAttitude() {
-  uint8_t headerBuffer[HEADER_LENGTH];
-
+void VN100::tareAttitude() {
   if( _useSPI ){
 
     if(timeSinceTX >= 50) {
@@ -730,20 +801,9 @@ int VN100::tareAttitude() {
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         SPI.transfer(0x00); // 3 bytes of zeros sent in header
         digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        delayMicroseconds(50); // wait at least 50 us for response buffer to fill
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
-          headerBuffer[i] = SPI.transfer(0x00); // read the header
-        }
-        // end communication
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        SPI.endTransaction(); // end the transaction
         timeSinceTX = 0;
 
-        // check the response header
-        if(headerBuffer[3] != 0) {
-          return -1*headerBuffer[3];
-        }
+        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
       }
     #endif
 
@@ -823,7 +883,6 @@ int VN100::tareAttitude() {
   else{
     // SERIAL
   }
-  return 0;  
 }
 
 /* Reads registers from VN100 given a starting register address, number of bytes, and a pointer to store data. */

@@ -85,9 +85,10 @@ class VN100{
     int getQuat(float* quat[4]);
     int getQuatIMU(float* quat[4], float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
 
-    int tareAttitude();
-    int writeSettings();
-    int resetSensor();
+    void tareAttitude();
+    void writeSettings();
+    void restoreSettings();
+    void resetSensor();
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
     int writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer);
   private:
