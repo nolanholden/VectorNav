@@ -192,8 +192,9 @@ int VN100::enableInterrupt(uint16_t SRD, uint32_t pulseWidth) {
 /* Sets up DLPF given window sizes for the sensors. */
 /* Return 0 on success or the VN error code on error. */
 int VN100::setDLPF(uint16_t magWindowSize, uint16_t accelWindowSize, uint16_t gyroWindowSize, uint16_t temperatureWindowSize, uint16_t pressureWindowSize) {
+  uint8_t magFilterMode,accelFilterMode,gyroFilterMode,tempFilterMode,pressFilterMode;
   uint8_t buffer[IMU_FILTER_CONFIG_REG[1]];
-  memset(buffer,3,IMU_FILTER_CONFIG_REG[1]);
+  memset(buffer,0,IMU_FILTER_CONFIG_REG[1]);
 
   // magnetometer, accel, gyro, temperature, and pressure window sizes
   memcpy(buffer,&magWindowSize,sizeof(magWindowSize));
@@ -201,6 +202,38 @@ int VN100::setDLPF(uint16_t magWindowSize, uint16_t accelWindowSize, uint16_t gy
   memcpy(buffer+4,&gyroWindowSize,sizeof(gyroWindowSize));
   memcpy(buffer+6,&temperatureWindowSize,sizeof(temperatureWindowSize));
   memcpy(buffer+8,&pressureWindowSize,sizeof(pressureWindowSize));
+
+  // enable or disable filtering
+  if(magWindowSize == 0) {
+    magFilterMode = 0;
+  } else {
+    magFilterMode = 3;
+  }
+  memcpy(buffer+10,&magFilterMode,sizeof(magFilterMode));
+  if(accelWindowSize == 0) {
+    accelFilterMode = 0;
+  } else {
+    accelFilterMode = 3;
+  }
+  memcpy(buffer+11,&accelFilterMode,sizeof(accelFilterMode));
+  if(gyroWindowSize == 0) {
+    gyroFilterMode = 0;
+  } else {
+    gyroFilterMode = 3;
+  }
+  memcpy(buffer+12,&gyroFilterMode,sizeof(gyroFilterMode));
+  if(temperatureWindowSize == 0) {
+    tempFilterMode = 0;
+  } else {
+    tempFilterMode = 3;
+  }
+  memcpy(buffer+13,&tempFilterMode,sizeof(tempFilterMode));
+  if(pressureWindowSize == 0) {
+    pressFilterMode = 0;
+  } else {
+    pressFilterMode = 3;
+  }
+  memcpy(buffer+14,&pressFilterMode,sizeof(pressFilterMode));
 
   // write registers
   int errType = writeRegisters(IMU_FILTER_CONFIG_REG[0],IMU_FILTER_CONFIG_REG[1],buffer);
