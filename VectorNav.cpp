@@ -492,19 +492,14 @@ int VN100::writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer){
         for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
           headerBuffer[i] = SPI.transfer(0x00); // read the header
         }
+        // end communication
+        digitalWriteFast(_csPin,HIGH); // deselect the VN100
+        SPI.endTransaction(); // end the transaction
+        timeSinceTX = 0;
 
         // check the response header
         if(headerBuffer[3] != 0) {
-          // end communication
-          digitalWriteFast(_csPin,HIGH); // deselect the VN100
-          SPI.endTransaction(); // end the transaction
-          timeSinceTX = 0;
-          return -1*buffer[3];
-        } else {
-          // end communication
-          digitalWriteFast(_csPin,HIGH); // deselect the VN100
-          SPI.endTransaction(); // end the transaction
-          timeSinceTX = 0;
+          return -1*headerBuffer[3];
         }
       }
     #endif
