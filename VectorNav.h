@@ -62,17 +62,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
   #endif
 #endif
 
-class VN100{
+class VectorNav{
   public:
-    VN100(uint8_t cspin);
-    VN100(uint8_t csPin, spi_mosi_pin pin);
+    VectorNav(uint8_t cspin);
+    VectorNav(uint8_t csPin, spi_mosi_pin pin);
     int begin();
     
     int enableInterrupt(uint16_t SRD, uint32_t pulseWidth);
     int setDLPF(uint16_t magWindowSize, uint16_t accelWindowSize, uint16_t gyroWindowSize, uint16_t temperatureWindowSize, uint16_t pressureWindowSize);
     int setReferenceFrameRotation(float T[3][3]);
-    int velocityCompensation(float U, float V, float W);
-
+    
     int getAccel(float* ax, float* ay, float* az);
     int getGyro(float* gx, float* gy, float* gz);
     int getMag(float* hx, float* hy, float* hz);
@@ -85,13 +84,12 @@ class VN100{
     int getQuat(float* quat[4]);
     int getQuatIMU(float* quat[4], float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* hx, float* hy, float* hz);
 
-    void tareAttitude();
     void writeSettings();
     void restoreSettings();
     void resetSensor();
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
     int writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer);
-  private:
+
     // spi
     uint8_t _csPin;
     spi_mosi_pin _mosiPin;
@@ -105,6 +103,7 @@ class VN100{
     const float G2uT = 100.0f;
     const float kPa2Pa = 1000.0f;
     const float deg2rad = PI/180.0f;
+    const double deg2radL = 3.141592653589793238462643383279502884L/180.0L;
 
     // VectorNav communication header length
     const uint8_t HEADER_LENGTH = 4;
@@ -114,7 +113,6 @@ class VN100{
     const uint8_t CMD_WRITE = 0x02;
     const uint8_t CMD_FLASH = 0x03;
     const uint8_t CMD_RESTORE = 0x04;
-    const uint8_t CMD_TARE = 0x05;
     const uint8_t CMD_RESET = 0x06;
     const uint8_t CMD_MAG_DISTURBANCE = 0x08;
     const uint8_t CMD_ACCEL_DISTURBANCE = 0x09;
@@ -153,9 +151,6 @@ class VN100{
     // Hard/soft iron estimator configuration
     const uint8_t MAG_HSI_CNTRL_REG[2]              = {44,  4};
 
-    // Velocity compensation configuration
-    const uint8_t VEL_COMPENSATION_CNTRL_REG[2]     = {51,  8};
-
     // World magnetic and gravity model configuration
     const uint8_t MAG_GRAV_REFERENCE_REG[2]         = {21,  24};
     const uint8_t REF_VECTOR_CONFIGURATION_REG[2]   = {83,  32};
@@ -181,14 +176,37 @@ class VN100{
     const uint8_t IMU_COMP_REG[2]                   = {20,  36};
     const uint8_t EULER_GYRO_BODY_ACCEL_REG[2]      = {239, 36};
     const uint8_t EULER_GYRO_INERTIAL_ACCEL_REG[2]  = {240, 36};
+};
+
+class VN100: public VectorNav {
+  public:
+    using VectorNav::VectorNav;
+    int velocityCompensation(float U, float V, float W);
+    void tareAttitude();
+  private:
+    // commands
+    const uint8_t CMD_TARE = 0x05;
+
+    // Velocity compensation configuration
+    const uint8_t VEL_COMPENSATION_CNTRL_REG[2]     = {51,  8};
 
     // Velocity compensation input
     const uint8_t VEL_COMPENSATION_MEAS_REG[2]      = {50,  12};
 };
 
-class VN200: public VN100{
+class VN200: public VectorNav {
   public:
-    using VN100::VN100;
+    using VectorNav::VectorNav;
+    int setAntennaOffset(float positionX, float positionY, float positionZ);
+
+    void setFilterBias();
+
+    int getGpsLla(double* tow, uint16_t* week, uint8_t* FixType, uint8_t* NumSV, double* latitude, double* longitude, double* altitude, float* NEDVelX, float* NEDVelY, float* NEDVelZ, float* NorthAcc, float* EastAcc, float* VertAcc, float* SpeedAcc, float* TimeAcc);
+    int getGpsEcef(double* tow, uint16_t* week, uint8_t* FixType, uint8_t* NumSV, double* PosX, double* PosY, double* PosZ, float* VelX, float* VelY, float* VelZ, float* XAcc, float* YAcc, float* ZAcc, float* SpeedAcc, float* TimeAcc);
+    int getInsLla(double* tow, uint16_t* week, uint8_t* mode, uint8_t* Fix, uint8_t* ErrorType, float* yaw, float* pitch, float* roll, double* latitude, double* longitude, double* altitude, float* NEDVelX, float* NEDVelY, float* NEDVelZ, float* AttAcc, float* PosAcc, float* VelAcc);
+    int getInsEcef(double* tow, uint16_t* week, uint8_t* mode, uint8_t* Fix, uint8_t* ErrorType, float* yaw, float* pitch, float* roll, double* PosX, double* PosY, double* PosZ, float* VelX, float* VelY, float* VelZ, float* AttAcc, float* PosAcc, float* VelAcc);
+    int getNavLla(float* yaw, float* pitch, float* roll, double* latitude, double* longitude, double* altitude, float* NEDVelX, float* NEDVelY, float* NEDVelZ, float* ax, float* ay, float* az, float* gx, float* gy, float* gz);
+    int getNavEcef(float* yaw, float* pitch, float* roll, double* PosX, double* PosY, double* PosZ, float* VelX, float* VelY, float* VelZ, float* ax, float* ay, float* az, float* gx, float* gy, float* gz);
   private:
     // commands
     const uint8_t CMD_SET_FILTER_BIAS = 0x11;
