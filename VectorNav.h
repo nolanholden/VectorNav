@@ -2,7 +2,6 @@
 VectorNav.h
 Brian R Taylor
 brian.taylor@bolderflight.com
-2017-03-31
 
 Copyright (c) 2017 Bolder Flight Systems
 
@@ -26,46 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #define VECTORNAV_h
 
 #include "Arduino.h"
-
-#ifndef SPI_MOSI_PIN
-#define SPI_MOSI_PIN
-  // Teensy 3.0 || Teensy 3.1/3.2
-  #if defined(__MK20DX128__) || defined(__MK20DX256__)
-  enum spi_mosi_pin
-  {
-    MOSI_PIN_7,
-    MOSI_PIN_11
-  };
-  #endif
-  // Teensy 3.5 || Teensy 3.6
-  #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-  enum spi_mosi_pin
-  {
-    MOSI_PIN_0,
-    MOSI_PIN_7,
-    MOSI_PIN_11,
-    MOSI_PIN_21,
-    MOSI_PIN_28,
-    MOSI_PIN_44,
-    MOSI_PIN_52
-  };
-  #endif
-  // Teensy LC 
-  #if defined(__MKL26Z64__)
-  enum spi_mosi_pin
-  {
-    MOSI_PIN_0,
-    MOSI_PIN_7,
-    MOSI_PIN_11,
-    MOSI_PIN_21
-  };
-  #endif
-#endif
+#include "SPI.h"
 
 class VectorNav{
   public:
     VectorNav(uint8_t cspin);
-    VectorNav(uint8_t csPin, spi_mosi_pin pin);
+    VectorNav(uint8_t csPin, SPIClass *Spi);
     int begin();
     
     int enableInterrupt(uint16_t SRD, uint32_t pulseWidth);
@@ -92,7 +57,7 @@ class VectorNav{
 
     // spi
     uint8_t _csPin;
-    spi_mosi_pin _mosiPin;
+    SPIClass *_spi;
     bool _useSPI;
     const uint32_t SPI_CLOCK = 16000000; // 16 MHz
 
@@ -231,7 +196,7 @@ class VN200: public VectorNav {
 };
 
 /* VN-300 firmware still in beta without SPI support. Below is an
-education guess at the additional commands and registers needed.
+educated guess at the additional commands and registers needed.
 class VN300: public VN200{
   public:
     using VN200::VN200;

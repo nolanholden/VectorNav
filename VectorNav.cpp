@@ -2,7 +2,6 @@
 VectorNav.cpp
 Brian R Taylor
 brian.taylor@bolderflight.com
-2017-03-31
 
 Copyright (c) 2017 Bolder Flight Systems
 
@@ -33,14 +32,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 /* VectorNav object, input the SPI CS Pin */
 VectorNav::VectorNav(uint8_t csPin){
   _csPin = csPin; // SPI CS Pin
-  _mosiPin = MOSI_PIN_11; // SPI MOSI Pin, set to default
+  _spi = &SPI;
   _useSPI = true; // set to use SPI instead of I2C
 }
 
 /* VectorNav object, input the SPI CS Pin and MOSI Pin */
-VectorNav::VectorNav(uint8_t csPin, spi_mosi_pin pin){
+VectorNav::VectorNav(uint8_t csPin, SPIClass *Spi){
   _csPin = csPin; // SPI CS Pin
-  _mosiPin = pin; // SPI MOSI Pin
+  _spi = Spi;
   _useSPI = true; // set to use SPI instead of I2C
 }
 
@@ -55,104 +54,7 @@ int VectorNav::begin(){
     // setting CS pin high
     digitalWriteFast(_csPin,HIGH);
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      // configure and begin the SPI
-      switch( _mosiPin ){
-        case MOSI_PIN_7:  // SPI bus 0 alternate 1
-          SPI.setMOSI(7);
-          SPI.setMISO(8);
-          SPI.setSCK(14);
-          SPI.begin();
-          break;
-        case MOSI_PIN_11: // SPI bus 0 default
-          SPI.setMOSI(11);
-          SPI.setMISO(12);
-          SPI.setSCK(13);
-          SPI.begin();
-          break;
-      }
-    #endif
-
-    // Teensy 3.5 || Teensy 3.6 
-    #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-      // configure and begin the SPI
-      switch( _mosiPin ){
-        case MOSI_PIN_0:  // SPI bus 1 default
-          SPI1.setMOSI(0);
-          SPI1.setMISO(1);
-          SPI1.setSCK(32);
-          SPI1.begin();
-          break;
-        case MOSI_PIN_7:  // SPI bus 0 alternate 1
-          SPI.setMOSI(7);
-          SPI.setMISO(8);
-          SPI.setSCK(14);
-          SPI.begin();
-          break;
-        case MOSI_PIN_11: // SPI bus 0 default
-          SPI.setMOSI(11);
-          SPI.setMISO(12);
-          SPI.setSCK(13);
-          SPI.begin();
-          break;
-        case MOSI_PIN_21: // SPI bus 1 alternate
-          SPI1.setMOSI(21);
-          SPI1.setMISO(5);
-          SPI1.setSCK(20);
-          SPI1.begin();
-          break;
-        case MOSI_PIN_28: // SPI bus 0 alternate 2
-          SPI.setMOSI(28);
-          SPI.setMISO(39);
-          SPI.setSCK(27);
-          SPI.begin();
-          break;
-        case MOSI_PIN_44: // SPI bus 2 default
-          SPI2.setMOSI(44);
-          SPI2.setMISO(45);
-          SPI2.setSCK(46);
-          SPI2.begin();
-          break;
-        case MOSI_PIN_52: // SPI bus 2 alternate
-          SPI2.setMOSI(52);
-          SPI2.setMISO(51);
-          SPI2.setSCK(53);
-          SPI2.begin();
-          break;
-      }
-    #endif
-
-    // Teensy LC 
-    #if defined(__MKL26Z64__)
-      // configure and begin the SPI
-      switch( _mosiPin ){
-        case MOSI_PIN_0:  // SPI bus 1 default
-          SPI1.setMOSI(0);
-          SPI1.setMISO(1);
-          SPI1.setSCK(20);
-          SPI1.begin();
-          break;
-        case MOSI_PIN_7:  // SPI bus 0 alternate 1
-          SPI.setMOSI(7);
-          SPI.setMISO(8);
-          SPI.setSCK(14);
-          SPI.begin();
-          break;
-        case MOSI_PIN_11: // SPI bus 0 default
-          SPI.setMOSI(11);
-          SPI.setMISO(12);
-          SPI.setSCK(13);
-          SPI.begin();
-          break;
-        case MOSI_PIN_21: // SPI bus 1 alternate
-          SPI1.setMOSI(21);
-          SPI1.setMISO(5);
-          SPI1.setSCK(20);
-          SPI1.begin();
-          break;
-      }
-    #endif
+    _spi->begin();
   }
   else{ // using I2C for communication
     // SERIAL
@@ -489,96 +391,17 @@ void VectorNav::writeSettings() {
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_FLASH); // specify command is a Flash
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_FLASH); // specify command is a Flash
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        timeSinceTX = 0;
-
-        delay(1000); // writing to non-volatile memory takes about 500 ms to complete
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    delay(1000); // writing to non-volatile memory takes about 500 ms to complete
   }
   else{
     // SERIAL
@@ -594,96 +417,17 @@ void VectorNav::restoreSettings() {
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_RESTORE); // specify command is a Flash
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_RESTORE); // specify command is a Flash
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        timeSinceTX = 0;
-
-        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
   }
   else{
     // SERIAL
@@ -700,96 +444,17 @@ void VectorNav::resetSensor() {
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_RESET); // specify command is a Reset
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_RESET); // specify command is a Reset
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        timeSinceTX = 0;
-
-        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
   }
   else{
     // SERIAL
@@ -808,115 +473,36 @@ int VectorNav::readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_READ); // specify command is a read
+    _spi->transfer(subAddress); // specify the starting register address
+    _spi->transfer(0x00); // 2 bytes of zeros sent in header
+    _spi->transfer(0x00); // 2 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    delayMicroseconds(50); // wait at least 50 us for response buffer to fill
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
+      buffer[i] = _spi->transfer(0x00); // read the header
+    }
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_READ); // specify command is a read
-        SPI.transfer(subAddress); // specify the starting register address
-        SPI.transfer(0x00); // 2 bytes of zeros sent in header
-        SPI.transfer(0x00); // 2 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        delayMicroseconds(50); // wait at least 50 us for response buffer to fill
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
-          buffer[i] = SPI.transfer(0x00); // read the header
-        }
-
-        // check the response header
-        if(buffer[3] != 0) {
-          // end communication
-          digitalWriteFast(_csPin,HIGH); // deselect the VN100
-          SPI.endTransaction(); // end the transaction
-          timeSinceTX = 0;
-          return -1*buffer[3];
-        } else {
-          for(uint8_t i = 0; i <  count; i++){
-            dest[i] = SPI.transfer(0x00); // read the data
-          }
-          // end communication
-          digitalWriteFast(_csPin,HIGH); // deselect the VN100
-          SPI.endTransaction(); // end the transaction
-          timeSinceTX = 0;
-        }
+    // check the response header
+    if(buffer[3] != 0) {
+      // end communication
+      digitalWriteFast(_csPin,HIGH); // deselect the VN100
+      _spi->endTransaction(); // end the transaction
+      timeSinceTX = 0;
+      return -1*buffer[3];
+    } else {
+      for(uint8_t i = 0; i <  count; i++){
+        dest[i] = _spi->transfer(0x00); // read the data
       }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+      // end communication
+      digitalWriteFast(_csPin,HIGH); // deselect the VN100
+      _spi->endTransaction(); // end the transaction
+      timeSinceTX = 0;
+    }
   }
   else{
     // SERIAL
@@ -937,110 +523,31 @@ int VectorNav::writeRegisters(uint8_t subAddress, uint8_t count, uint8_t* buffer
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_WRITE); // specify command is a write
+    _spi->transfer(subAddress); // specify the starting register address
+    _spi->transfer(0x00); // 2 bytes of zeros sent in header
+    _spi->transfer(0x00); // 2 bytes of zeros sent in header
+    for(uint8_t i = 0; i < count; i++){
+      _spi->transfer(buffer[i]);
+    }
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    delayMicroseconds(50); // wait at least 50 us for response buffer to fill
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
+      headerBuffer[i] = _spi->transfer(0x00); // read the header
+    }
+    // end communication
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    _spi->endTransaction(); // end the transaction
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_WRITE); // specify command is a write
-        SPI.transfer(subAddress); // specify the starting register address
-        SPI.transfer(0x00); // 2 bytes of zeros sent in header
-        SPI.transfer(0x00); // 2 bytes of zeros sent in header
-        for(uint8_t i = 0; i < count; i++){
-          SPI.transfer(buffer[i]);
-        }
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        delayMicroseconds(50); // wait at least 50 us for response buffer to fill
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        for(uint8_t i = 0; i <  HEADER_LENGTH; i++){
-          headerBuffer[i] = SPI.transfer(0x00); // read the header
-        }
-        // end communication
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        SPI.endTransaction(); // end the transaction
-        timeSinceTX = 0;
-
-        // check the response header
-        if(headerBuffer[3] != 0) {
-          return -1*headerBuffer[3];
-        }
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    // check the response header
+    if(headerBuffer[3] != 0) {
+      return -1*headerBuffer[3];
+    }
   }
   else{
     // SERIAL
@@ -1076,96 +583,17 @@ void VN100::tareAttitude() {
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_TARE); // specify command is a Tare
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_TARE); // specify command is a Tare
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        timeSinceTX = 0;
-
-        delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    delay(5000); // takes a few seconds for the sensor to come back up and converge on a solution
   }
   else{
     // SERIAL
@@ -1200,98 +628,19 @@ void VN200::setFilterBias() {
     } else {
       delayMicroseconds(50 - timeSinceTX);
     }
+    // begin the transaction
+    _spi->beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
+    digitalWriteFast(_csPin,LOW); // select the VN100
+    _spi->transfer(CMD_SET_FILTER_BIAS); // specify command is a Tare
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    _spi->transfer(0x00); // 3 bytes of zeros sent in header
+    digitalWriteFast(_csPin,HIGH); // deselect the VN100
+    timeSinceTX = 0;
 
-    // Teensy 3.0 || Teensy 3.1/3.2
-    #if defined(__MK20DX128__) || defined(__MK20DX256__)
-      if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-        // begin the transaction
-        SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-        digitalWriteFast(_csPin,LOW); // select the VN100
-        SPI.transfer(CMD_SET_FILTER_BIAS); // specify command is a Tare
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        SPI.transfer(0x00); // 3 bytes of zeros sent in header
-        digitalWriteFast(_csPin,HIGH); // deselect the VN100
-        timeSinceTX = 0;
+    delay(1000); 
 
-        delay(1000); 
-
-        writeSettings(); // write the settings to NVM
-      }
-    #endif
-
-    // // Teensy 3.5 || Teensy 3.6 
-    // #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)||(_mosiPin == MOSI_PIN_28)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_44)||(_mosiPin == MOSI_PIN_52)){
-    //     // begin the transaction
-    //     SPI2.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI2.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI2.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI2.endTransaction(); // end the transaction
-    //   }
-    // #endif
-
-    // // Teensy LC 
-    // #if defined(__MKL26Z64__)
-    //   if((_mosiPin == MOSI_PIN_11)||(_mosiPin == MOSI_PIN_7)){
-    //     // begin the transaction
-    //     SPI.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI.endTransaction(); // end the transaction
-    //   }
-    //   else if((_mosiPin == MOSI_PIN_0)||(_mosiPin == MOSI_PIN_21)){
-    //     // begin the transaction
-    //     SPI1.beginTransaction(SPISettings(SPI_CLOCK, MSBFIRST, SPI_MODE3));
-    //     digitalWriteFast(_csPin,LOW); // select the VN100
-    //     SPI1.transfer(subAddress | SPI_READ); // specify the starting register address
-
-    //     for(uint8_t i = 0; i < count; i++){
-    //       dest[i] = SPI1.transfer(0x00); // read the data
-    //     }
-
-    //     digitalWriteFast(_csPin,HIGH); // deselect the VN100
-    //     SPI1.endTransaction(); // end the transaction
-    //   }
-    // #endif
+    writeSettings(); // write the settings to NVM
   }
   else{
     // SERIAL
