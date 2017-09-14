@@ -18,7 +18,7 @@ Simply clone or download this library into your Arduino/libraries folder. [Teens
 This library supports both the VN-100 IMU/AHRS and VN-200 INS. The object declaration is different depending on the sensor used. Additionally, while most functions are available on both sensors, some functions are unique given the sensors required (for example, functions using GPS on the VN-200). Functions are listed below for object declaration, setup, and data collection. In each of these categories functions are given for the VN-100, VN-200, and functions common to both.
 
 ## Return Types
-FILL
+All functions below that return an int, return 0 on success. On error the VectorNav error code is returned as a negative number (i.e. VectorNav error code 1 is returned as -1). 
 
 ### Object Declaration 
 
