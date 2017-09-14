@@ -75,7 +75,7 @@ void setup() {
 ```
 
 ### Setup Functions
-The following functions are used to setup the VN-100 or VN-200. These should be called once before data collection, typically this is done in the Arduino *void setup()* function. The *begin* function should always be used and the rest provide optional functionality.
+The following functions are used to setup the VN-100 or VN-200. All of these other than *velocityCompensation* should be called once before data collection, typically this is done in the Arduino *void setup()* function. The *begin* function should always be used and the rest provide optional functionality. If the functionality of *velocityCompensation* is desired, it should be called at rates above 1 Hz, with 10 Hz or greater providing the best accuracy.
 
 #### Common
 **int begin()**
@@ -137,7 +137,7 @@ This optional function commands the VN-100 or VN-200 to reboot. It takes about 5
 #### VN-100
 
 **(optional) void tareAttitude()**
-This is an optional function to tare (zero) the attitude at the current orientation. For example, the following code tares the attitude.
+This is an optional function to tare (zero) the attitude at the current orientation. It takes about 5 seconds to complete this command. For example, the following code tares the attitude.
 
 ```C++
 VN200 IMU(10);
@@ -162,9 +162,216 @@ IMU.velocityCompensation(20,0,0);
 This is an optional function to set the GPS antenna position relative to the VN-200 in the sensor coordinate frame with the origin as the VN-200 and the X, Y, and Z distances given in units of meters.
 
 **(optional) void setFilterBias()**
-This is an optional function to save the current filter bias estimates to non-volatile memory. These saved bias estimates will be used as the initial state at startup.
+This is an optional function to save the current filter bias estimates to non-volatile memory. These saved bias estimates will be used as the initial state at the next startup. It takes about 2 seconds to complete this command.
 
 ### Data Collection Functions
+The functions below are used to collect data from the VN-100 or VN-200. All of the data returned by the function were collected from the VN-100 or VN-200 at the same time, so it is preferable to use the function which returns all of the desired data rather than two separate function calls in order to eliminate potential time skews in your results. For example, it would be preferable to use *getMotion6* to get both gyroscope and accelerometer data rather than call *getAccel* followed by *getGyro*. This preference is because the gyroscope and accelerometer data returned by *getMotion6* were all sampled simultaneously whereas using *getAccel* followed by *getGyro* could possibly introduce a time skew between the accelerometer and gyroscope data. Units of the returned data are given in the detailed description for each function.
+
+#### Common
+
+**int getAccel(float&ast; ax, float&ast; ay, float&ast; az)**
+*getAccel(float&ast; ax, float&ast; ay, float&ast; az)* samples the VN-100 or VN-200 and returns the three-axis accelerometer data as floats in m/s/s.
+
+```C++
+float ax, ay, az;
+IMU.getAccel(&ax, &ay, &az);
+```
+
+**int getGyro(float&ast; gx, float&ast; gy, float&ast; gz)**
+*getGyro(float&ast; gx, float&ast; gy, float&ast; gz)* samples the VN-100 or VN-200 and returns the three-axis gyroscope data as floats in rad/s.
+
+```C++
+float gx, gy, gz;
+IMU.getGyro(&gx, &gy, &gz);
+```
+
+**int getMag(float&ast; hx, float&ast; hy, float&ast; hz)**
+*getMag(float&ast; hx, float&ast; hy, float&ast; hz)* samples the VN-100 or VN-200 and returns the three-axis magnetometer data as floats in uT.
+
+```C++
+float hx, hy, hz;
+IMU.getMag(&hx, &hy, &hz);
+```
+
+**int getPressure(float&ast; pressure)**
+*getPressure(float&ast; pressure)* samples the VN-100 or VN-200 and returns the static pressure as a float in Pa.
+
+```C++
+float pressure;
+IMU.getPressure(&pressure);
+```
+
+**int getTemperature(float&ast; t)**
+*getTemperature(float&ast; t)* samples the VN-100 or VN-200 and returns the die temperature as a float in C.
+
+```C++
+float t;
+IMU.getTemperature(&t);
+```
+
+**int getMotion6(float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)**
+*getMotion6(float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)* samples the VN-100 or VN-200 and returns the three-axis accelerometer data as floats in m/s/s and the three-axis gyroscope data as floats in rad/s.
+
+```C++
+float ax, ay, az, gx, gy, gz;
+IMU.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+```
+
+**int getMotion9(float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)**
+*getMotion9(float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)* samples the VN-100 or VN-200 and returns the three-axis accelerometer data as floats in m/s/s, the three-axis gyroscope data as floats in rad/s, and the three-axis magnetometer data as floats in uT.
+
+```C++
+float ax, ay, az, gx, gy, gz, hx, hy, hz;
+IMU.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &hx, &hy, &hz);
+```
+
+**int getEuler(float&ast; yaw, float&ast; pitch, float&ast; roll)**
+*getEuler(float&ast; yaw, float&ast; pitch, float&ast; roll)* samples the VN-100 or VN-200 and returns the three-axis orientation estimate as floats in rad.
+
+```C++
+float yaw, pitch, roll;
+IMU.getEuler(&yaw, &pitch, &roll);
+```
+
+**int getEulerIMU(float&ast; yaw, float&ast; pitch, float&ast; roll, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)**
+*getEulerIMU(float&ast; yaw, float&ast; pitch, float&ast; roll, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)* samples the VN-100 or VN-200 and returns the three-axis orientation estimate and IMU data. Yaw, pitch, and roll orentation are given as floats in rad, the three-axis accelerometer data as floats in m/s/s, the three-axis gyroscope data as floats in rad/s, and the three-axis magnetometer data as floats in uT.    
+    
+```C++
+float yaw, pitch, roll, ax, ay, az, gx, gy, gz, hx, hy, hz;
+IMU.getEulerIMU(&yaw, &pitch, &roll, &ax, &ay, &az, &gx, &gy, &gz, &hx, &hy, &hz);
+```
+
+**int getQuat(float&ast; quat[4])**
+*int getQuat(float&ast; quat[4])* samples the VN-100 or VN-200 and returns the orientation estimate as  quaternion vector with the fourth value as the scalar terma.
+
+```C++
+float quat[4];
+IMU.getQuat(quat);
+```
+
+**int getQuatIMU(float&ast; quat[4], float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)**
+*getQuatIMU(float&ast; quat[4], float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)* samples the VN-100 or VN-200 and returns the orientation estimate and IMU data. The orientation estimate is given as a quaternion vector with the fourth value as the scalar term, the three-axis accelerometer data as floats in m/s/s, the three-axis gyroscope data as floats in rad/s, and the three-axis magnetometer data as floats in uT.
+
+```C++
+float quat[4], ax, ay, az, gx, gy, gz, hx, hy, hz;
+IMU.getQuatIMU(quat, &ax, &ay, &az, &gx, &gy, &gz, &hx, &hy, &hz);
+```
+
+#### VN-200
+
+**int getGpsLla(double&ast; tow, uint16_t&ast; week, uint8_t&ast; FixType, uint8_t&ast; NumSV, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; NorthAcc, float&ast; EastAcc, float&ast; VertAcc, float&ast; SpeedAcc, float&ast; TimeAcc)**
+*getGpsLla(double&ast; tow, uint16_t&ast; week, uint8_t&ast; FixType, uint8_t&ast; NumSV, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; NorthAcc, float&ast; EastAcc, float&ast; VertAcc, float&ast; SpeedAcc, float&ast; TimeAcc)* samples the VN-200 and gives GPS data in Latitude, Longitude, Altitude (LLA) format. GPS time of week is given in seconds, followed by the GPS week number, the fix type, the number of satellites used in the solution, latitude and longitude in rad, altitude in m, NED velocity in m/s, NED position accuracy in m, speed accuracy in m/s, and time accuracy in seconds.
+
+The fix type is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 0     | No Fix      |
+| 1     | Time Only   |
+| 2     | 2D Fix      |
+| 3     | 3D Fix      |
+
+```C++
+double tow, latitude, longitude, altitude;
+float NEDVelX, NEDVelY, NEDVelZ, NorthAcc, EastAcc, VertAcc, SpeedAcc, TimeAcc;
+uint16_t week;
+uint8_t FixType, NumSV;
+IMU.getGpsLla(&tow, &week, &FixType, &NumSV, &latitude, &longitude, &altitude, &NEDVelX, &NEDVelY, &NEDVelZ, &NorthAcc, &EastAcc, &VertAcc, &SpeedAcc, &TimeAcc);
+```
+
+**int getGpsEcef(double&ast; tow, uint16_t&ast; week, uint8_t&ast; FixType, uint8_t&ast; NumSV, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; XAcc, float&ast; YAcc, float&ast; ZAcc, float&ast; SpeedAcc, float&ast; TimeAcc)**
+*getGpsEcef(double&ast; tow, uint16_t&ast; week, uint8_t&ast; FixType, uint8_t&ast; NumSV, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; XAcc, float&ast; YAcc, float&ast; ZAcc, float&ast; SpeedAcc, float&ast; TimeAcc)* samples the VN-200 and gives GPS data in Earth Centered Earth Fixed (ECEF) format. GPS time of week is given in seconds, followed by the GPS week number, the fix type, the number of satellites used in the solution, ECEF X, Y, and Z coordinates in m, ECEF velocity in m/s, ECEF position accuracy in m, speed accuracy in m/s, and time accuracy in seconds.
+
+The fix type is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 0     | No Fix      |
+| 1     | Time Only   |
+| 2     | 2D Fix      |
+| 3     | 3D Fix      |
+
+```C++
+double tow, PosX, PosY, PosZ;
+float VelX, VelY, VelZ, XAcc, YAcc, ZAcc, SpeedAcc, TimeAcc;
+uint16_t week;
+uint8_t FixType, NumSV;
+IMU.getGpsEcef(&tow, &week, &FixType, &NumSV, &PosX, &PosY, &PosZ, &VelX, &VelY, &VelZ, &XAcc, &YAcc, &ZAcc, &SpeedAcc, &TimeAcc);
+```
+
+**int getInsLla(double&ast; tow, uint16_t&ast; week, uint8_t&ast; mode, uint8_t&ast; Fix, uint8_t&ast; ErrorType, float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; AttAcc, float&ast; PosAcc, float&ast; VelAcc)**
+*getInsLla(double&ast; tow, uint16_t&ast; week, uint8_t&ast; mode, uint8_t&ast; Fix, uint8_t&ast; ErrorType, float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; AttAcc, float&ast; PosAcc, float&ast; VelAcc)* samples the VN-200 and gives GPS data in Latitude, Longitude, Altitude (LLA) format along with the orientation estimate. GPS time of week is given in seconds, followed by the GPS week number, the INS mode (more detailed information below), GPS Fix (bool, 1 for a proper fix), INS error type (more detailed information below), yaw, pitch, and roll Euler angles in rad, latitude and longitude in rad, altitude in m, NED velocity in m/s, attitude uncertainty in rad, position uncertainty in m, and velocity uncertainty in m/s.
+
+The mode is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 0     | Not tracking. Insufficient dynamic motion to estimate attitude       |
+| 1     | Sufficient dynamic motion, but solution not within performance specs |
+| 2     | INS is tracking and operating within specifications                  |
+
+The error type is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 1     | Time Error, INS filter loop exceeded 5 ms                         |
+| 2     | IMU Error, IMU communication error is detected                    |
+| 3     | Mag/Pres Error, Magnetometer or Pressure sensor error is detected |
+| 4     | GPS Error, GPS communication error is detected                    |
+
+```C++
+double tow, latitude, longitude, altitude;
+float yaw, pitch, roll, NEDVelX, NEDVelY, NEDVelZ, AttAcc, PosAcc, VelAcc;
+uint16_t week;
+uint8_t mode, Fix, ErrorType;
+IMU.getInsLla(&tow, &week, &mode, &Fix, &ErrorType, &yaw, &pitch, &roll, &latitude, &longitude, &altitude, &NEDVelX, &NEDVelY, &NEDVelZ, &AttAcc, &PosAcc, &VelAcc);
+```
+    
+**int getInsEcef(double&ast; tow, uint16_t&ast; week, uint8_t&ast; mode, uint8_t&ast; Fix, uint8_t&ast; ErrorType, float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; AttAcc, float&ast; PosAcc, float&ast; VelAcc)**
+*getInsEcef(double&ast; tow, uint16_t&ast; week, uint8_t&ast; mode, uint8_t&ast; Fix, uint8_t&ast; ErrorType, float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; AttAcc, float&ast; PosAcc, float&ast; VelAcc)* samples the VN-200 and gives GPS data in Earth Centered Earth Fixed (ECEF) format along with the orientation estimate. GPS time of week is given in seconds, followed by the GPS week number, the INS mode (more detailed information below), GPS Fix (bool, 1 for a proper fix), INS error type (more detailed information below), yaw, pitch, and roll Euler angles in rad,  ECEF X, Y, and Z coordinates in m, ECEF velocity in m/s, attitude uncertainty in rad, position uncertainty in m, and velocity uncertainty in m/s.
+
+The mode is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 0     | Not tracking. Insufficient dynamic motion to estimate attitude       |
+| 1     | Sufficient dynamic motion, but solution not within performance specs |
+| 2     | INS is tracking and operating within specifications                  |
+
+The error type is described by:
+
+| Value | Description |
+| ----- | ----------- |
+| 1     | Time Error, INS filter loop exceeded 5 ms                         |
+| 2     | IMU Error, IMU communication error is detected                    |
+| 3     | Mag/Pres Error, Magnetometer or Pressure sensor error is detected |
+| 4     | GPS Error, GPS communication error is detected                    |
+
+```C++
+double tow, PosX, PosY, PosZ;
+float yaw, pitch, roll, VelX, VelY, VelZ, AttAcc, PosAcc, VelAcc;
+uint16_t week;
+uint8_t mode, Fix, ErrorType;
+IMU.getInsEcef(&tow, &week, &mode, &Fix, &ErrorType, &yaw, &pitch, &roll, &PosX, &PosY, &PosZ, &VelX, &VelY, &VelZ, &AttAcc, &PosAcc, &VelAcc);
+```
+
+**int getNavLla(float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)**
+*int getNavLla(float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; latitude, double&ast; longitude, double&ast; altitude, float&ast; NEDVelX, float&ast; NEDVelY, float&ast; NEDVelZ, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)* samples the VN-200 and gives the INS state with position in Latitude, Longitude, and Altitude (LLA) format. Orientation is given as yaw, roll, and pitch in rad, latitude and longitude in rad, altitude in m, NED velocity in m/s, body frame acceleration in m/s/s, and body frame angular rates in rad/s.
+    
+```C++
+double latitude, longitude, altitude;
+float yaw, pitch, roll, NEDVelX, NEDVelY, NEDVelZ, ax, ay, az, gx, gy, gz;
+IMU.getNavLla(&yaw, &pitch, &roll, &latitude, &longitude, &altitude, &NEDVelX, &NEDVelY, &NEDVelZ, &ax, &ay, &az, &gx, &gy, &gz);
+```
+
+**int getNavEcef(float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)**
+*getNavEcef(float&ast; yaw, float&ast; pitch, float&ast; roll, double&ast; PosX, double&ast; PosY, double&ast; PosZ, float&ast; VelX, float&ast; VelY, float&ast; VelZ, float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz)* samples the VN-200 and gives the INS state with position in Earth Centered Earth Fixed (ECEF) format. Orientation is given as yaw, roll, and pitch in rad, ECEF X, Y, and Z coordinates in m, ECEF velocity in m/s, body frame acceleration in m/s/s, and body frame angular rates in rad/s.
+
+```C++
+double PosX, PosY, PosZ;
+float yaw, pitch, roll, VelX, VelY, VelZ, ax, ay, az, gx, gy, gz;
+IMU.getNavEcef(&yaw, &pitch, &roll, &PosX, &PosY, &PosZ, &VelX, &VelY, &VelZ, &ax, &ay, &az, &gx, &gy, &gz);
+```
 
 ## Example List
 
