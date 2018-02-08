@@ -246,7 +246,7 @@ IMU.getEulerIMU(&yaw, &pitch, &roll, &ax, &ay, &az, &gx, &gy, &gz, &hx, &hy, &hz
 
 ```C++
 float quat[4];
-IMU.getQuat(quat);
+IMU.getQuat(&quat);
 ```
 
 **int getQuatIMU(float&ast; quat[4], float&ast; ax, float&ast; ay, float&ast; az, float&ast; gx, float&ast; gy, float&ast; gz, float&ast; hx, float&ast; hy, float&ast; hz)**
